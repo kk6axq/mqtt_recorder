@@ -1,6 +1,7 @@
 from mqtt_recorder.recorder import MqttRecorder, SslContext
 import argparse
 import time
+import signal
 
 parser = argparse.ArgumentParser(
     prog='mqtt_recorder',
@@ -120,8 +121,15 @@ def wait_for_keyboard_interrupt():
     except KeyboardInterrupt:
         pass
 
-
+# Called on SIGABRT
+# https://stackoverflow.com/questions/21415696/python-detect-kill-request
+def handler(signum, frame):
+    global recorder
+    print('Signal handler called with signal', signum)
+    recorder.stop_recording()
+    
 def main():
+    global handler, recorder
     args = parser.parse_args()
     sslContext = SslContext(args.enable_ssl, args.ca_cert, args.certfile, args.keyfile)
     recorder = MqttRecorder(
@@ -132,6 +140,8 @@ def main():
         args.password,
         sslContext,
         args.encode_b64)
+
+    signal.signal(signal.SIGABRT, handler)
     if args.mode == 'record':
         recorder.start_recording(qos=args.qos, topics_file=args.topics)
         wait_for_keyboard_interrupt()
