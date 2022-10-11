@@ -27,6 +27,8 @@ class MqttRecorder:
                  password: str, sslContext: SslContext, encode_b64: bool):
         self.__recording = False
         self.__messages = list()
+        self.__message_file = None
+        self.__csv_writer = None
         self.__file_name = file_name
         self.__last_message_time = None
         self.__encode_b64 = encode_b64
@@ -52,6 +54,10 @@ class MqttRecorder:
         else:
             self.__client.subscribe('#', qos=qos)
         self.__recording = True
+
+        # Leave the file and writer open so each line can be written
+        self.__message_file = open(self.__file_name, 'w', newline='')
+        self.__csv_writer = csv.writer(self.__message_file)
 
     def start_replay(self, loop: bool):
         def decode_payload(payload, encode_b64):
@@ -84,11 +90,14 @@ class MqttRecorder:
         self.__client.loop_stop()
         logger.info('Recording stopped')
         self.__recording = False
-        logger.info('Saving messages to output file')
-        with open(self.__file_name, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            for message in self.__messages:
-                writer.writerow(message)
+    
+        logger.info('Saving messages to output file {}'.format(self.__file_name))
+        self.__message_file.close()
+
+        #with open(self.__file_name, 'w', newline='') as csvfile:
+        #    writer = csv.writer(csvfile)
+        #    for message in self.__messages:
+        #        writer.writerow(message)
 
 
     def __on_connect(self, client, userdata, flags, rc):
@@ -106,5 +115,8 @@ class MqttRecorder:
             time_delta = time_now - self.__last_message_time
             payload = encode_payload(msg.payload, self.__encode_b64)
             row = [msg.topic, payload, msg.qos, msg.retain, time_now, time_delta]
-            self.__messages.append(row)
+            
+            #self.__messages.append(row)
+            # Write the message directly to file
+            self.__csv_writer.writerow(row)
             self.__last_message_time = time_now
