@@ -1,4 +1,4 @@
-from mqtt_recorder.recorder import MqttRecorder, SslContext
+from recorder import MqttRecorder, SslContext
 import argparse
 import time
 import signal
@@ -127,6 +127,7 @@ def handler(signum, frame):
     global recorder
     print('Signal handler called with signal', signum)
     recorder.stop_recording()
+    quit()
     
 def main():
     global handler, recorder
@@ -142,6 +143,7 @@ def main():
         args.encode_b64)
 
     signal.signal(signal.SIGABRT, handler)
+    signal.signal(signal.SIGTERM, handler)
     if args.mode == 'record':
         recorder.start_recording(qos=args.qos, topics_file=args.topics)
         wait_for_keyboard_interrupt()
